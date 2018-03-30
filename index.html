@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>where is my car</title>
-    <link rel="stylesheet" href="http://cache.amap.com/lbs/static/main1119.css"/>
+    <link rel="stylesheet" href="http://cache.amap.com/lbs/static/main1119.css" />
     <style>
         body,
         html {
@@ -29,6 +29,7 @@
             width: 100%;
             box-sizing: border-box;
         }
+
         #panel {
             position: fixed;
             background-color: white;
@@ -45,7 +46,6 @@
     <div id="container">
 
     </div>
-    <div id="panel"></div>
     <div class='btnBox'>
         <button class='start' disabled>设置起点</button>
         <button class='nav' disabled>开始导航</button>
@@ -58,16 +58,15 @@
             //创建图
             var startPoint = [];//起点和当前点
             var nowPoint = [];
-            var isLoading = true;
+            var pointList = [];
+            var isFirst = true;
+            var startRequest;
+            var polygon;
+            var customMarker;
             var map = new AMap.Map('container', {
                 zoom: 15,
                 resizeEnable: true
             });
-             //步行导航
-            var walking = new AMap.Walking({
-                map: map,
-                panel: "panel"
-            }); 
             var toolBar = null, geolocation = null;
             //地图中添加地图操作ToolBar插件
             map.plugin(["AMap.ToolBar"], function () {
@@ -87,25 +86,30 @@
                 AMap.event.addListener(geolocation, 'complete', onComplete);//返回定位信息
                 AMap.event.addListener(geolocation, 'error', onError);      //返回定位出错信息
             });
-            geolocation.getCurrentPosition();
+
             function onComplete(data) {
-                if(isLoading) {//第一次加载完毕设置按钮可点
-                    $('.start').attr('disabled',false)
-                    isLoading = false;
+                console.log('定位数据',data)
+                if(isFirst){//第一次只定位
+                    isFirst = false;
+                    $('.start').prop('disabled',false)
+                }else{//每次定位成功 发送下次请求
+                    pointList.push([data.position.lng,data.position.lat])
+                    if(!customMarker){
+                        makeMarker(pointList[0])
+                    }
+                    drawLine(pointList)
+                    setTimeout(function(){
+                        geolocation.getCurrentPosition();
+                    },1000)
                 }
-                nowPoint = [data.position.getLng(), data.position.getLat()]
-                if(startPoint.length){//起点不为空
-                    //计算两点间的路径
-                    walking.search(startPoint, nowPoint)
-                }
+                
             }
 
             $('.start').on('click', function () {//设置起点
-                startPoint = nowPoint
                 $(this).prop({ disabled: true })
                 $('.nav').prop({ disabled: false })
                 //创建坐标点
-                makeMarker(startPoint)
+                geolocation.getCurrentPosition();
             })
             $('.nav').on('click', function () {//开始导航
                 geolocation.getCurrentPosition();//nowPoint  
@@ -113,7 +117,7 @@
 
             function makeMarker(data) {//根据数据创建点坐标
                 var customMarker = new AMap.Marker({
-                    position:data,
+                    position: data,
                     offset: new AMap.Pixel(-14, -34),//相对于基点的位置
                     icon: new AMap.Icon({  //复杂图标
                         size: new AMap.Size(27, 36),//图标大小
@@ -122,6 +126,17 @@
                     })
                 });
                 customMarker.setMap(map)
+            }
+            function drawLine(list) {
+                 polygon = new AMap.Polygon({
+                    path: list,//设置多边形边界路径
+                    strokeColor: "#FF33FF", //线颜色
+                    strokeOpacity: 0.2, //线透明度
+                    strokeWeight: 3,    //线宽
+                    fillColor: "#1791fc", //填充色
+                    fillOpacity: 0.35//填充透明度
+                });
+                polygon.setMap(map);
             }
         })
     </script>
